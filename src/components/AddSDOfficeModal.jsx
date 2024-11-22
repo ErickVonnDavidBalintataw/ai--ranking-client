@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useState, useEffect } from "react";
 import { addSDOffice, getCampusesByExtension } from "../services/service";
 import emailjs from "@emailjs/browser";
+import Swal from "sweetalert2";
 
 const AddSDOfficeModal = ({ setIsAddModalOpen, setReload }) => {
     const [campuses, setCampuses] = useState([]);
@@ -95,11 +96,28 @@ const AddSDOfficeModal = ({ setIsAddModalOpen, setReload }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (validateForm()) {
+
+        if (!validateForm()) return;
+
+        try {
+            // Show loading spinner
+            Swal.fire({
+                title: "Processing...",
+                text: "Please wait while we submit the data.",
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                willOpen: () => {
+                    Swal.showLoading();
+                },
+            });
+
             const response = await addSDOffice(formData);
+
             if (response) {
                 try {
-                    emailjs.send(
+                    // Attempt to send email
+                    const emailResponse = await emailjs.send(
                         import.meta.env.VITE_J92_SERVICE_ID,
                         import.meta.env.VITE_ADD_SDO_TEMPLATE_ID,
                         {
@@ -107,21 +125,56 @@ const AddSDOfficeModal = ({ setIsAddModalOpen, setReload }) => {
                             csd_email: "justmyrgutierrez92@gmail.com",
                             sd_email: formData.email,
                             message:
-                                "please change your password upon login. thank you",
+                                "Please change your password upon login. Thank you.",
                         },
                         import.meta.env.VITE_J92_PUBLIC_ID
                     );
-                    // Email was sent successfully
-                    console.log("Email sent successfully:", email_response);
-                    // Handle success (e.g., show a success message, redirect, etc.)
-                } catch (error) {
-                    // There was an error sending the email
-                    console.error("Error sending email:", error);
-                    // Handle error (e.g., show an error message)
+
+                    console.log("Email sent successfully:", emailResponse);
+
+                    // Close loading spinner
+                    Swal.close();
+
+                    // Show success message
+                    await Swal.fire({
+                        title: "Success!",
+                        text: "Data submitted and email sent successfully.",
+                        icon: "success",
+                    });
+
+                    setReload(true); // Trigger reload
+                    handleClose(); // Close the modal and reset form data
+                } catch (emailError) {
+                    console.error("Error sending email:", emailError);
+
+                    // Close loading spinner
+                    Swal.close();
+
+                    // Show error message
+                    Swal.fire({
+                        title: "Error",
+                        text: "Data submitted, but there was an error sending the email.",
+                        icon: "warning",
+                    });
+
+                    setReload(true); // Trigger reload even if email fails
+                    handleClose(); // Close the modal and reset form data
                 }
-                setReload(true);
+            } else {
+                throw new Error("Failed to submit the form data.");
             }
-            handleClose(); // Close the modal and reset form data
+        } catch (error) {
+            console.error("Error during submission:", error);
+
+            // Close loading spinner
+            Swal.close();
+
+            // Show error message
+            Swal.fire({
+                title: "Submission Failed",
+                text: "An error occurred while submitting the data. Please try again.",
+                icon: "error",
+            });
         }
     };
 

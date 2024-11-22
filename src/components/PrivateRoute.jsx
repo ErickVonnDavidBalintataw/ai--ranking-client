@@ -2,44 +2,44 @@ import { Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 
 const PrivateRoute = ({ Component, Path }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // Add loading state
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isLoading, setIsLoading] = useState(true); // Add loading state
 
-  useEffect(() => {
-    const checkAuthentication = async () => {
-      const token = localStorage.getItem("token");
+    useEffect(() => {
+        const checkAuthentication = async () => {
+            const token = localStorage.getItem("token");
 
-      if (!token) {
-        setIsAuthenticated(false);
-        setIsLoading(false); // Stop loading when no token
-        return;
-      }
+            if (!token) {
+                setIsAuthenticated(false);
+                setIsLoading(false); // Stop loading when no token
+                return;
+            }
 
-      try {
-        const response = await fetch(
-          "https://ai-impact-ranking-server.onrender.com/api/validate-token",
-          {
-            method: "POST",
-            headers: { jwt_token: token },
-          }
-        );
+            try {
+                const response = await fetch(
+                    "https://ai-backend-drcx.onrender.com/api/validate-token",
+                    {
+                        method: "POST",
+                        headers: { jwt_token: token },
+                    }
+                );
 
-        const data = await response.json();
-        setIsAuthenticated(data === true);
-      } catch (error) {
-        console.error(error);
-        setIsAuthenticated(false);
-      } finally {
-        setIsLoading(false); // Stop loading after checking authentication
-      }
-    };
+                const data = await response.json();
+                setIsAuthenticated(data === true);
+            } catch (error) {
+                console.error(error);
+                setIsAuthenticated(false);
+            } finally {
+                setIsLoading(false); // Stop loading after checking authentication
+            }
+        };
 
-    checkAuthentication();
-  }, [isAuthenticated]);
+        checkAuthentication();
+    }, [isAuthenticated]);
 
-  if (isLoading) return null; // Render nothing while loading
+    if (isLoading) return null; // Render nothing while loading
 
-  return isAuthenticated ? <Component /> : <Navigate to={Path || "/login"} />;
+    return isAuthenticated ? <Component /> : <Navigate to={Path || "/login"} />;
 };
 
 export default PrivateRoute;

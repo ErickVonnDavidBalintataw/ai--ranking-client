@@ -9,102 +9,102 @@ import Recommender from "../../components/Recommender";
 import FileChart from "../../components/FileChart";
 import { useNavigate } from "react-router-dom";
 const groq = new Groq({
-  apiKey: "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",
-  dangerouslyAllowBrowser: true,
+    apiKey: "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",
+    dangerouslyAllowBrowser: true,
 });
 
 const SDDashboardPage = () => {
-  const [topCampus, setTopCampus] = useState([]);
-  const [sdOfficers, setSdOfficers] = useState([]);
-  const [sdgs, setSdgs] = useState([
-    { sdg_id: "SDG01", title: "No Poverty" },
-    { sdg_id: "SDG02", title: "Zero Hunger" },
-    // Add other SDGs here
-  ]);
-  const [selectedSdgId, setSelectedSdgId] = useState("SDG01");
-  const [campusScores, setCampusScores] = useState([]);
-  const [instruments, setInstruments] = useState([]);
-  const [lowestScoreCampuses, setLowestScoreCampuses] = useState([]);
-  const [recommendations, setRecommendations] = useState("");
+    const [topCampus, setTopCampus] = useState([]);
+    const [sdOfficers, setSdOfficers] = useState([]);
+    const [sdgs, setSdgs] = useState([
+        { sdg_id: "SDG01", title: "No Poverty" },
+        { sdg_id: "SDG02", title: "Zero Hunger" },
+        // Add other SDGs here
+    ]);
+    const [selectedSdgId, setSelectedSdgId] = useState("SDG01");
+    const [campusScores, setCampusScores] = useState([]);
+    const [instruments, setInstruments] = useState([]);
+    const [lowestScoreCampuses, setLowestScoreCampuses] = useState([]);
+    const [recommendations, setRecommendations] = useState("");
 
-  // Step 1: Add state for selected year
-  const [selectedYear, setSelectedYear] = useState("2024");
+    // Step 1: Add state for selected year
+    const [selectedYear, setSelectedYear] = useState("2024");
 
-  // Step 2: Create an array for years
-  const years = ["2024", "2023", "2022", "2021"];
-  const navigate = useNavigate();
-  useEffect(() => {
-    const userId = localStorage.getItem("user_id");
-    const role = localStorage.getItem("role");
+    // Step 2: Create an array for years
+    const years = ["2024", "2023", "2022", "2021"];
+    const navigate = useNavigate();
+    useEffect(() => {
+        const userId = localStorage.getItem("user_id");
+        const role = localStorage.getItem("role");
 
-    if (!userId || !role) {
-      navigate("/login");
-    }
-  }, [navigate]);
+        if (!userId || !role) {
+            navigate("/login");
+        }
+    }, [navigate]);
 
-  useEffect(() => {
-    const getSDOfficers = async () => {
-      try {
-        const response = await fetch(
-          "https://ai-impact-ranking-server.onrender.com/api/get/sd-office"
-        );
-        const jsonData = await response.json();
-        setSdOfficers(jsonData);
-      } catch (err) {
-        console.error(err.message);
-      }
-    };
-    getSDOfficers();
-  }, []);
+    useEffect(() => {
+        const getSDOfficers = async () => {
+            try {
+                const response = await fetch(
+                    "https://ai-backend-drcx.onrender.com/api/get/sd-office"
+                );
+                const jsonData = await response.json();
+                setSdOfficers(jsonData);
+            } catch (err) {
+                console.error(err.message);
+            }
+        };
+        getSDOfficers();
+    }, []);
 
-  return (
-    <section className="h-screen flex">
-      <Sidebar />
-      <main className="h-full w-[80%] border overflow-auto p-4">
-        <div className="header py-5 px-7 flex justify-between items-center">
-          <h1 className="text-2xl text-gray-900">Dashboard</h1>
+    return (
+        <section className="h-screen flex">
+            <Sidebar />
+            <main className="h-full w-[80%] border overflow-auto p-4">
+                <div className="header py-5 px-7 flex justify-between items-center">
+                    <h1 className="text-2xl text-gray-900">Dashboard</h1>
 
-          {/* Step 3: Add a year selection dropdown */}
-          <select
-            name="year-selector"
-            id="year-selector"
-            className="border p-2 rounded"
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-          >
-            <option value="">Select Year</option>
-            {years.map((year, index) => (
-              <option
-                key={year}
-                value={year}
-                // Add a default selected year if needed
-                selected={index === 0}
-              >
-                {year}
-              </option>
-            ))}
-          </select>
-        </div>
-        <hr className="w-full border my-4" />
-        <div className="flex gap-4 mb-4">
-          <ScorePerCampusChart
-            setScores={setCampusScores}
-            setTopCampus={setTopCampus}
-            selectedYear={selectedYear}
-          />
-          {/* <BatStateUSDGScoreChart /> */}
-        </div>
-        <div className="flex gap-4 mb-2">
-          <CampusScoreperSDGChart selectedYear={selectedYear} />
-          <CampusSDGScoreChart
-            topCampus={topCampus}
-            selectedYear={selectedYear}
-          />
-        </div>
-        <Recommender selectedYear={selectedYear} />
-      </main>
-    </section>
-  );
+                    {/* Step 3: Add a year selection dropdown */}
+                    <select
+                        name="year-selector"
+                        id="year-selector"
+                        className="border p-2 rounded"
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(e.target.value)}
+                    >
+                        <option value="">Select Year</option>
+                        {years.map((year, index) => (
+                            <option
+                                key={year}
+                                value={year}
+                                // Add a default selected year if needed
+                                selected={index === 0}
+                            >
+                                {year}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <hr className="w-full border my-4" />
+                <div className="flex gap-4 mb-4">
+                    <ScorePerCampusChart
+                        setScores={setCampusScores}
+                        setTopCampus={setTopCampus}
+                        selectedYear={selectedYear}
+                    />
+                    {/* <BatStateUSDGScoreChart /> */}
+                </div>
+                <div className="flex gap-4 mb-2">
+                    <CampusScoreperSDGChart selectedYear={selectedYear} />
+                    <CampusSDGScoreChart
+                        topCampus={topCampus}
+                        selectedYear={selectedYear}
+                    />
+                </div>
+                <Recommender selectedYear={selectedYear} />
+            </main>
+        </section>
+    );
 };
 
 export default SDDashboardPage;
