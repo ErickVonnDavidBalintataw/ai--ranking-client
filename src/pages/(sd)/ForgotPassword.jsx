@@ -22,13 +22,16 @@ const ForgotPassword = () => {
   // Handle sending OTP
   const handleSendOtp = async () => {
     try {
-      const response = await fetch("http://localhost:9000/api/send-otp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email: loginCredentials.email }),
-      });
+      const response = await fetch(
+        "https://ai-impact-ranking-server.onrender.com/api/send-otp",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email: loginCredentials.email }),
+        }
+      );
       const data = await response.json();
 
       if (data.success) {
@@ -80,16 +83,19 @@ const ForgotPassword = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch("http://localhost:9000/api/verify-otp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: loginCredentials.email,
-          otp: loginCredentials.otp,
-        }),
-      });
+      const response = await fetch(
+        "https://ai-impact-ranking-server.onrender.com/api/verify-otp",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: loginCredentials.email,
+            otp: loginCredentials.otp,
+          }),
+        }
+      );
 
       const data = await response.json();
 
@@ -112,16 +118,19 @@ const ForgotPassword = () => {
       return;
     }
     try {
-      const response = await fetch("http://localhost:9000/api/reset-password", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: loginCredentials.email,
-          password: loginCredentials.password,
-        }),
-      });
+      const response = await fetch(
+        "https://ai-impact-ranking-server.onrender.com/api/reset-password",
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: loginCredentials.email,
+            password: loginCredentials.password,
+          }),
+        }
+      );
       const data = await response.json();
 
       if (data.success) {

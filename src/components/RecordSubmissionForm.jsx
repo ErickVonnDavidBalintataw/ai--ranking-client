@@ -64,7 +64,7 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
     const fetchCampusData = async () => {
       try {
         const response = await fetch(
-          `http://localhost:9000/api/get/sd-office/${localStorage.getItem(
+          `https://ai-impact-ranking-server.onrender.com/api/get/sd-office/${localStorage.getItem(
             "user_id"
           )}`
         );
@@ -105,7 +105,7 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
 
       try {
         const response = await fetch(
-          `http://localhost:9000/api/get/instrumentsbysdg/${selectedSdg}`
+          `https://ai-impact-ranking-server.onrender.com/api/get/instrumentsbysdg/${selectedSdg}`
         );
         if (response.ok) {
           const instrumentData = await response.json();
@@ -123,7 +123,7 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
         const updatedInstruments = await Promise.all(
           instrumentData.map(async (instrument) => {
             const sectionsResponse = await fetch(
-              `http://localhost:9000/api/get/sectionsbyinstrument/${instrument.instrument_id}`
+              `https://ai-impact-ranking-server.onrender.com/api/get/sectionsbyinstrument/${instrument.instrument_id}`
             );
             if (sectionsResponse.ok) {
               const sections = await sectionsResponse.json();
@@ -152,11 +152,11 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
           sections.map(async (section) => {
             try {
               const questionsResponse = await fetch(
-                `http://localhost:9000/api/get/questions/${section.section_id}`
+                `https://ai-impact-ranking-server.onrender.com/api/get/questions/${section.section_id}`
               );
 
               const fetchFormulas = await fetch(
-                `http://localhost:9000/api/get/formula_per_section/${section.section_id}`
+                `https://ai-impact-ranking-server.onrender.com/api/get/formula_per_section/${section.section_id}`
               );
               const formula = await fetchFormulas.json();
 
@@ -356,7 +356,7 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
 
           // Send the individual file request
           const response = await fetch(
-            `http://localhost:9000/api/upload-evidence/${recordId}`,
+            `https://ai-impact-ranking-server.onrender.com/api/upload-evidence/${recordId}`,
             {
               method: "POST",
               body: formData,
@@ -378,7 +378,7 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
   };
 
   const sendAnswers = async (recordId) => {
-    const url = "http://localhost:9000/api/add/answers";
+    const url = "https://ai-impact-ranking-server.onrender.com/api/add/answers";
     for (const answer of answers) {
       if (!answer.question_id || !answer.campus_id) {
         console.error("Invalid answer data:", answer);
@@ -423,7 +423,7 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
     try {
       // Submit the record to the server
       const recordResponse = await fetch(
-        "http://localhost:9000/api/add/records",
+        "https://ai-impact-ranking-server.onrender.com/api/add/records",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

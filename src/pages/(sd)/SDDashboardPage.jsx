@@ -45,7 +45,9 @@ const SDDashboardPage = () => {
   useEffect(() => {
     const getSDOfficers = async () => {
       try {
-        const response = await fetch("http://localhost:9000/api/get/sd-office");
+        const response = await fetch(
+          "https://ai-impact-ranking-server.onrender.com/api/get/sd-office"
+        );
         const jsonData = await response.json();
         setSdOfficers(jsonData);
       } catch (err) {

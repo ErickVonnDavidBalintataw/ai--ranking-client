@@ -219,7 +219,7 @@ Return the answer in HTML as an ordered list. Add a line break after each </li> 
     const fetchRecordsAndFormulas = async () => {
       try {
         const response = await fetch(
-          `http://localhost:9000/api/get/records-values-by-campus_id/${selectedCampus}/${selectedYear}`
+          `https://ai-impact-ranking-server.onrender.com/api/get/records-values-by-campus_id/${selectedCampus}/${selectedYear}`
         );
         const recordsData = await response.json();
 
@@ -243,7 +243,7 @@ Return the answer in HTML as an ordered list. Add a line break after each </li> 
         const formulas = {};
         for (const sectionId of uniqueSectionIds) {
           const formulaResponse = await fetch(
-            `http://localhost:9000/api/get/formula/${sectionId}`
+            `https://ai-impact-ranking-server.onrender.com/api/get/formula/${sectionId}`
           );
           const formulaData = await formulaResponse.json();
           if (formulaData.length > 0) {
@@ -307,10 +307,11 @@ Return the answer in HTML as an ordered list. Add a line break after each </li> 
       try {
         let url;
         localStorage.getItem("role").toString() === "1"
-          ? (url = `http://localhost:9000/api/get/campus-by-user-id/${localStorage.getItem(
+          ? (url = `https://ai-impact-ranking-server.onrender.com/api/get/campus-by-user-id/${localStorage.getItem(
               "user_id"
             )}`)
-          : (url = "http://localhost:9000/api/get/campuses");
+          : (url =
+              "https://ai-impact-ranking-server.onrender.com/api/get/campuses");
 
         const response = await fetch(url);
         const data = await response.json();
