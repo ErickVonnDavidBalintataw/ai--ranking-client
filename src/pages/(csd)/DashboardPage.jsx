@@ -9,6 +9,7 @@ import Recommender from "../../components/Recommender";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faRankingStar } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
+import NotificationSD from "../../components/NotificationSD";
 
 const groq = new Groq({
     apiKey: "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",
@@ -61,26 +62,30 @@ const DashboardPage = () => {
                         Impact Ranking
                     </h1>
 
-                    {/* Step 3: Add a year selection dropdown */}
-                    <select
-                        name="year-selector"
-                        id="year-selector"
-                        className="border p-2 rounded"
-                        value={selectedYear}
-                        onChange={(e) => setSelectedYear(e.target.value)}
-                    >
-                        <option value="">Select Year</option>
-                        {years.map((year, index) => (
-                            <option
-                                key={year}
-                                value={year}
-                                // Add a default selected year if needed
-                                selected={index === 0}
-                            >
-                                {year}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="flex gap-2">
+                        {/* Step 3: Add a year selection dropdown */}
+                        <select
+                            name="year-selector"
+                            id="year-selector"
+                            className="border p-2 rounded"
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(e.target.value)}
+                        >
+                            <option value="">Select Year</option>
+                            {years.map((year, index) => (
+                                <option
+                                    key={year}
+                                    value={year}
+                                    // Add a default selected year if needed
+                                    selected={index === 0}
+                                >
+                                    {year}
+                                </option>
+                            ))}
+                        </select>
+
+                        <NotificationSD />
+                    </div>
                 </div>
                 <hr className="w-full border my-4" />
                 <div className="flex gap-4 mb-4">

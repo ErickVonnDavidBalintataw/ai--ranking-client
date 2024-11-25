@@ -3,6 +3,7 @@ import Sidebar from "../../components/Sidebar";
 import RecordSubmissionForm from "../../components/RecordSubmissionForm";
 import UpdateRecordForm from "../../components/UpdateRecordForm";
 import { useNavigate } from "react-router-dom";
+import NotificationCSD from "../../components/NotificationCSD";
 
 const SDRecordPage = () => {
     const [selectedYear, setSelectedYear] = useState(2024);
@@ -142,6 +143,8 @@ const SDRecordPage = () => {
             <main className="h-full w-[80%] border overflow-auto">
                 <div className="header py-5 px-7 flex justify-between items-center">
                     <h1 className="text-2xl text-gray-900">Record</h1>
+
+                    <NotificationCSD />
                 </div>
                 <hr />
                 <div className="py-5 px-7">

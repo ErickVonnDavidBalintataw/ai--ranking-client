@@ -6,6 +6,7 @@ import ViewRecords from "../../components/ViewRecords";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faList } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
+import NotificationSD from "../../components/NotificationSD";
 
 const CSDRecordPage = () => {
     const [selectedYear, setSelectedYear] = useState("2023");
@@ -157,12 +158,18 @@ const CSDRecordPage = () => {
     return (
         <section className="h-screen flex">
             <Sidebar />
-            <main className="h-full w-[80%] border overflow-auto">
+            <main
+                className="h-full w-[80%] 
+            border overflow-auto"
+            >
                 <div className="header py-5 px-7 flex justify-between items-center">
                     <h1 className="text-2xl text-gray-900">
                         <FontAwesomeIcon icon={faList} className="mr-2" />
                         Record
                     </h1>
+                    <div className="flex gap-2">
+                        <NotificationSD />
+                    </div>
                 </div>
                 <hr />
                 <div className="py-5 px-7">

@@ -48,6 +48,7 @@ const replaceFormulasWithValues = (data) => {
             });
 
             let score = eval(excelFormula.toJavaScript(formulaStr));
+            console.log(score, "hehehehehe");
             total_scores += score;
 
             return {

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import excelFormula from "excel-formula";
-import Swal from "sweetalert2";
 import emailjs from "@emailjs/browser";
+import Swal from "sweetalert2";
 
-const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
+const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
     const [instruments, setInstruments] = useState([]);
     const [answers, setAnswers] = useState([]);
     const [error, setError] = useState("");
@@ -13,7 +13,29 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
     const [summedAnswers, setSummedAnswers] = useState([]);
     const [campusId, setCampusID] = useState(null);
     const [updatedFormulas, setUpdatedFormulas] = useState([]);
-    const [existingAnswers, setExistingAnswers] = useState([]);
+    const [sectionFiles, setSectionFiles] = useState({});
+
+    const [totalScore, setTotalScore] = useState(0);
+
+    useEffect(() => {
+        const calculateTotalScore = () => {
+            const scores = Array.from(
+                document.querySelectorAll("td.score")
+            ).map((el) => parseFloat(el.textContent || "0"));
+            const total = scores.reduce((acc, score) => acc + score, 0);
+            setTotalScore(total);
+        };
+
+        calculateTotalScore();
+
+        // Optional: recalculates if td.score content changes dynamically
+        const observer = new MutationObserver(calculateTotalScore);
+        document
+            .querySelectorAll("td.score")
+            .forEach((node) => observer.observe(node, { childList: true }));
+
+        return () => observer.disconnect(); // Cleanup observer on component unmount
+    }, [answers]);
 
     const [sumByQuestionID, setSumByQuestionID] = useState([]); // State to store the arr
     const campuses = {
@@ -37,28 +59,6 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
         9: "San Juan",
         11: "Lobo",
     };
-
-    useEffect(() => {
-        const fetchExistingAnswers = async () => {
-            try {
-                const response = await fetch(
-                    `https://ai-backend-drcx.onrender.com/api/get/answers/${recordId}`
-                );
-                if (!response.ok) {
-                    throw new Error("Failed to fetch answers");
-                }
-                const data = await response.json();
-                setAnswers(data);
-                console.log(data, "asdhaha");
-            } catch (error) {
-                console.error("Error fetching existing answers:", error);
-            }
-        };
-
-        if (recordId) {
-            fetchExistingAnswers();
-        }
-    }, [recordId]);
 
     // Fetch campus data when userId changes
     useEffect(() => {
@@ -108,7 +108,6 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
         setAnswers([]);
         setFormulas([]);
         setUpdatedFormulas([]);
-        setSumByQuestionID([]);
         const fetchInstruments = async () => {
             if (!selectedSdg) return;
 
@@ -118,6 +117,8 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
                 );
                 if (response.ok) {
                     const instrumentData = await response.json();
+                    console.log(instrumentData, "hahahaha int");
+
                     await fetchSectionsForInstruments(instrumentData);
                 } else {
                     setError("Failed to fetch instruments.");
@@ -138,7 +139,8 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
                             const sections = await sectionsResponse.json();
                             const sectionsWithQuestions =
                                 await fetchQuestionsForSections(sections);
-                            console.log(sectionsWithQuestions, "Asdasd");
+                            console.log(sections, "hahahaha sec");
+
                             return {
                                 ...instrument,
                                 section_contents: sectionsWithQuestions,
@@ -148,6 +150,7 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
                         }
                     })
                 );
+                console.log(updatedInstruments, "asdasdasd");
                 setInstruments(updatedInstruments);
             } catch (error) {
                 setError("An error occurred while fetching sections.");
@@ -163,57 +166,37 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
                             const questionsResponse = await fetch(
                                 `https://ai-backend-drcx.onrender.com/api/get/questions/${section.section_id}`
                             );
+
                             const fetchFormulas = await fetch(
                                 `https://ai-backend-drcx.onrender.com/api/get/formula_per_section/${section.section_id}`
                             );
-
                             const formula = await fetchFormulas.json();
-                            const fetchEvidenceResponse = await fetch(
-                                `https://ai-backend-drcx.onrender.com/api/get/evidence/`,
-                                {
-                                    method: "POST",
-                                    headers: {
-                                        "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify({
-                                        section_id: section.section_id,
-                                        record_id: recordId,
-                                    }),
-                                }
-                            );
-
-                            const evidences =
-                                await fetchEvidenceResponse.json();
 
                             if (!formula.includes(section.section_id)) {
                                 fetchedFormulas.push(formula[0]);
-
-                                setFormulas((prevFormulas) => [
-                                    ...prevFormulas,
-                                    formula[0],
-                                ]);
                             }
 
                             if (questionsResponse.ok) {
                                 const questions =
                                     await questionsResponse.json();
+                                console.log(questions, "hahahaha");
+
                                 return {
                                     ...section,
                                     questions: questions,
-                                    evidences: evidences,
                                 };
                             } else {
-                                return {
-                                    ...section,
-                                    questions: [],
-                                    evidences: [],
-                                };
+                                return { ...section, questions: [] };
                             }
                         } catch (error) {
-                            return { ...section, questions: [], evidences: [] };
+                            return { ...section, questions: [] };
                         }
                     })
                 );
+
+                console.log(fetchedFormulas, "hahahaha forms");
+
+                setFormulas(fetchedFormulas);
                 return sectionsWithQuestions;
             } catch (error) {
                 setError("An error occurred while fetching questions.");
@@ -227,26 +210,45 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
         fetchInstruments();
     }, [selectedSdg]);
 
-    const handleInputChange = (e, question_id, campus_id) => {
+    const generateAnswers = (instrumentData) => {
+        const answers = [];
+        instrumentData.forEach((instrument) => {
+            instrument.section_contents.forEach((section) => {
+                section.questions.forEach((question) => {
+                    flattenedCampuses.forEach((campus) => {
+                        answers.push({
+                            question_id: question.question_id,
+                            sub_id: question.sub_id,
+                            value: 0,
+                            campus_id: campus.id,
+                        });
+                    });
+                });
+            });
+        });
+        console.log(answers, "hahahaha anw");
+
+        return answers;
+    };
+
+    useEffect(() => {
+        if (instruments.length > 0) {
+            setAnswers(generateAnswers(instruments));
+        }
+    }, [instruments]);
+
+    const handleInputChange = (e, question_id, sub_id, campus_id) => {
         const { value } = e.target;
         setAnswers((prevAnswers) =>
             prevAnswers.map((answer) =>
                 answer.question_id === question_id &&
+                answer.sub_id === sub_id &&
                 answer.campus_id === campus_id
                     ? { ...answer, value: parseFloat(value) || 0 }
                     : answer
             )
         );
     };
-
-    useEffect(() => {
-        const totalScore = updatedFormulas.reduce(
-            (acc, curr) => acc + (curr.score || 0),
-            0
-        );
-
-        setTotal(totalScore);
-    }, [answers]);
 
     useEffect(() => {
         let uniqueFormulas;
@@ -285,7 +287,6 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
                 } else {
                     // If no entry exists, create a new object
                     acc.push({
-                        section_id: item.section_id,
                         question_id: questionId,
                         sub_id: subId,
                         value: value,
@@ -300,7 +301,7 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
         } else {
             console.log("No answers or empty array", "marker");
         }
-    }, [formulas, answers]);
+    }, [formulas, answers]); // Re-run effect whenever formulas or answers change
 
     useEffect(() => {
         if (
@@ -316,37 +317,14 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
                     self.findIndex((t) => t.formula_id === value.formula_id)
             );
 
+            // Assuming sumByQuestionID is in the format similar to summationData
             const valueMap = {};
             sumByQuestionID.forEach((item) => {
                 valueMap[item.sub_id] = item.value; // Create a map for fast lookup
             });
 
-            console.log(valueMap, "hahahaha vas");
-
-            const valueMapBySection = sumByQuestionID.reduce((acc, item) => {
-                // If the section doesn't exist in the accumulator, create it
-                if (!acc[item.section_id]) {
-                    acc[item.section_id] = {};
-                }
-
-                // Set the sub_id with its corresponding value
-                acc[item.section_id][item.sub_id] = item.value;
-
-                return acc;
-            }, {});
-
-            console.log(valueMapBySection, "hahahaha vass");
-
             // Function to replace values in the formula
             const replaceFormulaValues = (formula, valueMap) => {
-                console.log(
-                    formula.replace(/([A-Z]\d+)/g, (match) => {
-                        return valueMap[match] !== undefined
-                            ? valueMap[match]
-                            : match;
-                    }),
-                    "replaces"
-                );
                 return formula.replace(/([A-Z]\d+)/g, (match) => {
                     return valueMap[match] !== undefined
                         ? valueMap[match]
@@ -354,47 +332,152 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
                 });
             };
 
-            console.log(uniqueFormulas, "hahahaha forw");
+            // const safeEvaluate = (formula, valueMap) => {
+            //     try {
+            //         const replacedFormula = formula.replace(
+            //             /([A-Z]\d+)/g,
+            //             (match) => {
+            //                 return valueMap[match] !== undefined
+            //                     ? valueMap[match]
+            //                     : match;
+            //             }
+            //         );
 
-            // Updated Formulas with failsafe evaluation
+            //         // Replace eval with Function for safe evaluation
+            //         const fn = new Function("return " + replacedFormula);
+            //         return fn();
+            //     } catch (error) {
+            //         console.error("Error evaluating formula:", error);
+            //         return 0; // Default to 0 in case of error
+            //     }
+            // };
+
+            // const updatedFormulasV = uniqueFormulas.map((formulaObj) => {
+            //     const updatedFormula = safeEvaluate(
+            //         formulaObj.formula,
+            //         valueMap
+            //     );
+            //     console.log(updatedFormula, "Updated Formula");
+
+            //     return {
+            //         ...formulaObj,
+            //         formula: updatedFormula,
+            //         score: eval(excelFormula.toJavaScript(updatedFormula)),
+            //     };
+            // });
+
+            // Apply replacement to each unique formula
+
+            console.log(uniqueFormulas, "hahahaha forw");
             const updatedFormulasV = uniqueFormulas.map((formulaObj) => {
                 const updatedFormula = replaceFormulaValues(
                     formulaObj.formula,
-                    valueMapBySection[formulaObj.section_id]
+                    valueMap
                 );
-                console.log(updatedFormula, valueMap, "Updated Formula");
-
-                let result;
-                try {
-                    // Attempt to evaluate the formula
-                    const jsFormula = excelFormula.toJavaScript(updatedFormula);
-                    console.log(jsFormula, "JavaScript Formula");
-                    console.log(eval(jsFormula), "JavaScript Formula");
-
-                    result = eval(jsFormula);
-                } catch (error) {
-                    // If an error occurs, set the result to 0 (default value)
-                    console.error("Error evaluating formula:", error);
-                    result = 0;
-                }
+                console.log(updatedFormula, "hahahaha for");
 
                 return {
                     ...formulaObj,
                     formula: updatedFormula,
-                    score: result, // Fallback to 0 if there's an error
+                    score: eval(excelFormula.toJavaScript(updatedFormula)),
                 };
             });
-
-            console.log(updatedFormulasV, "Final Formulas with Results");
 
             setUpdatedFormulas(updatedFormulasV); // Log the updated formulas with replaced values
         }
     }, [sumByQuestionID, formulas]);
 
+    const [fileData, setFileData] = useState([]);
+    const handleFileChange = (event, section_id) => {
+        const selectedFiles = Array.from(event.target.files);
+        setFileData((prev) => ({
+            ...prev,
+            [section_id]: selectedFiles,
+        }));
+    };
+
+    const uploadFile = async (recordId) => {
+        try {
+            // Iterate over each section in fileData
+            for (const sectionId in fileData) {
+                for (const file of fileData[sectionId]) {
+                    // Create a new FormData instance for each file
+                    const formData = new FormData();
+                    formData.append("files", file); // Append the file
+                    formData.append("record_id", recordId); // Append the record ID
+                    formData.append("section_id", sectionId); // Append the section ID
+
+                    // Prepare sectionData structure to include in the form
+                    const sectionData = {
+                        record_id: recordId,
+                        section_id: sectionId,
+                    };
+                    formData.append("sectionData", JSON.stringify(sectionData));
+
+                    // Log each key-value pair in FormData for debugging
+                    for (let [key, value] of formData.entries()) {
+                        console.log(key, value);
+                    }
+
+                    // Send the individual file request
+                    const response = await fetch(
+                        `https://ai-backend-drcx.onrender.com/api/upload-evidence/${recordId}`,
+                        {
+                            method: "POST",
+                            body: formData,
+                        }
+                    );
+
+                    if (!response.ok) throw new Error("Failed to upload file");
+
+                    const result = await response.json();
+                    console.log("File uploaded successfully:", result);
+                }
+            }
+
+            return true;
+        } catch (error) {
+            console.error("Error uploading files:", error);
+            return false;
+        }
+    };
+
+    const sendAnswers = async (recordId) => {
+        const url = "https://ai-backend-drcx.onrender.com/api/add/answers";
+        for (const answer of answers) {
+            if (!answer.question_id || !answer.campus_id) {
+                console.error("Invalid answer data:", answer);
+                continue;
+            }
+
+            const data = {
+                record_value_id: crypto.randomUUID(),
+                value: answer.value.toString(),
+                question_id: answer.question_id,
+                record_id: recordId,
+                campus_id: answer.campus_id,
+            };
+
+            try {
+                const answerResponse = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data),
+                });
+                if (!answerResponse.ok)
+                    throw new Error("Failed to submit answer");
+                const result = await answerResponse.json();
+            } catch (error) {
+                console.error("Error submitting answer:", error);
+            }
+        }
+
+        return true;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Show confirmation dialog before submitting the updates
         const confirmation = await Swal.fire({
             title: "Are you sure?",
             text: "You are about to update the answers. Do you want to continue?",
@@ -408,111 +491,89 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
             return; // Do nothing if the user cancels
         }
 
+        const recordData = {
+            user_id: localStorage.getItem("user_id"),
+            status: 1,
+            date_submitted: new Date().toISOString(),
+            sdg_id: selectedSdg,
+            year: selectedYear,
+        };
+
         try {
-            // Proceed with updating answers if confirmed
-            const updatePromises = answers.map(async (answer) => {
-                const response = await fetch(
-                    "https://ai-backend-drcx.onrender.com/api/update/answers",
-                    {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify(answer),
-                    }
-                );
-
-                if (!response.ok) {
-                    throw new Error(
-                        `Error: ${response.status} ${response.statusText}`
-                    );
+            // Submit the record to the server
+            const recordResponse = await fetch(
+                "https://ai-backend-drcx.onrender.com/api/add/records",
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(recordData),
                 }
+            );
 
-                return await response.json();
-            });
+            if (!recordResponse.ok) throw new Error("Failed to submit record");
+            const record = await recordResponse.json();
 
-            // Wait for all updates to complete
-            const updatedAnswers = await Promise.all(updatePromises);
-            const editorName = localStorage.getItem("name"); // Retrieve the editor's name from local storage
+            // Call uploadFile with the retrieved record_id
+            if (!(await uploadFile(record.record_id))) {
+                return; // Stop if file upload fails
+            }
+
+            const recordID = record.record_id;
 
             try {
-                await emailjs.send(
+                emailjs.send(
                     "service_84tcmsn",
                     "template_oj00ezl",
                     {
                         to_email: "justmyrgutierrez92@gmail.com",
-                        subject: "Notification: Record Submission Updated",
+                        subject: "Record Submission Notification",
                         message: `
-                            =====================================================
-                            RECORD SUBMISSION NOTIFICATION
-                            =====================================================
-                            
-                            Dear Sir/Madam,
-            
-                            We would like to inform you that an existing record has been successfully updated.
-            
-                            Details of the Updated Record:
-                            -------------------------------------
-                            - Updated By: ${editorName || "Unknown"} 
-                            - Record ID: ${recordId}
-            
-                            If you have any questions or require further assistance, please feel free to contact us.
-            
-                            Best regards,  
-                            Sustainable Development Office (SDO)
+                                    ==============================
+                                    RECORD SUBMISSION NOTIFICATION
+                                    ==============================
+
+                                    Hello,
+
+                                    A new record has been successfully submitted.
+
+                                    Record Details:
+                                    ---------------
+                                    - Record ID: ${recordID}
+
+
+                                    Thank you,
+                                    SDO
                         `,
                     },
                     "F6fJuRNFyTkkvDqbm"
                 );
-                console.log("Email sent successfully.");
-            } catch (emailError) {
-                console.error("Error sending email:", emailError);
+
+                Swal.fire({
+                    title: "Success!",
+                    text: "Answers updated successfully.",
+                    icon: "success",
+                    confirmButtonText: "OK",
+                });
+            } catch (error) {
+                console.error("Error submitting answer:", error);
+
+                // Show error message with SweetAlert
+                Swal.fire({
+                    title: "Error!",
+                    text: `An error occurred while updating the answers: ${error.message}`,
+                    icon: "error",
+                    confirmButtonText: "OK",
+                });
             }
 
-            const notificationMessage = `
-    A record has been updated.
-    Please review the changes made to the record.
-`;
-
-            // Send a notification about the new record submission
-            const notifResponse = await fetch(
-                "https://ai-backend-drcx.onrender.com/api/create-notification",
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        userId: localStorage.getItem("user_id"), // User ID from localStorage
-                        notificationMessage,
-                    }),
-                }
-            );
-
-            if (!notifResponse.ok) {
-                throw new Error("Failed to create notification.");
+            // Proceed to send answers using the record_id
+            const res = await sendAnswers(record.record_id);
+            if (res) {
+                window.location.reload();
             }
-
-            console.log("Notification sent successfully.");
-
-            // Show success message with SweetAlert
-            Swal.fire({
-                title: "Success!",
-                text: "Answers updated successfully.",
-                icon: "success",
-                confirmButtonText: "OK",
-            });
-
-            console.log("Updated answers:", updatedAnswers);
-            // Handle the updated answers as needed (e.g., updating local state)
+            console.log("All answers submitted successfully.");
         } catch (error) {
-            console.error("Error updating answers:", error);
-
-            // Show error message with SweetAlert
-            Swal.fire({
-                title: "Error!",
-                text: `An error occurred while updating the answers: ${error.message}`,
-                icon: "error",
-                confirmButtonText: "OK",
-            });
+            console.error("Error during record submission:", error);
         }
     };
 
@@ -542,7 +603,7 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
                                         {instrument.section_contents.length >
                                         0 ? (
                                             instrument.section_contents.map(
-                                                (section) => (
+                                                (section, sectionIndex) => (
                                                     <React.Fragment
                                                         key={section.section_id}
                                                     >
@@ -606,6 +667,8 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
                                                                                                 ) =>
                                                                                                     ans.question_id ===
                                                                                                         question.question_id &&
+                                                                                                    ans.sub_id ===
+                                                                                                        question.sub_id &&
                                                                                                     ans.campus_id ===
                                                                                                         campus.id
                                                                                             )
@@ -618,6 +681,7 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
                                                                                             handleInputChange(
                                                                                                 e,
                                                                                                 question.question_id,
+                                                                                                question.sub_id,
                                                                                                 campus.id
                                                                                             )
                                                                                         }
@@ -626,6 +690,17 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
                                                                                 </td>
                                                                             )
                                                                         )}
+                                                                        {/* <td className="border px-4 py-2 text-start whitespace-nowrap align-top">
+                                                                            {updatedFormulas.find(
+                                                                                (
+                                                                                    formula
+                                                                                ) =>
+                                                                                    formula.section_id ===
+                                                                                    section.section_id
+                                                                            )
+                                                                                ?.score ||
+                                                                                0}
+                                                                        </td> */}
                                                                     </tr>
                                                                 </React.Fragment>
                                                             )
@@ -633,66 +708,119 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
                                                         <tr>
                                                             <td
                                                                 colSpan={
-                                                                    flattenedCampuses.length +
-                                                                    1
+                                                                    flattenedCampuses.length
                                                                 }
                                                                 className="border px-4 py-2 text-end whitespace-nowrap align-top"
                                                             >
-                                                                {"Score: " +
-                                                                    updatedFormulas
-                                                                        .filter(
-                                                                            (
-                                                                                formula
-                                                                            ) =>
-                                                                                formula.section_id ===
-                                                                                section.section_id
-                                                                        )
-                                                                        .reduce(
-                                                                            (
-                                                                                acc,
-                                                                                curr
-                                                                            ) =>
-                                                                                acc +
-                                                                                (curr.score ||
-                                                                                    0),
-                                                                            0
-                                                                        )}
+                                                                Score
                                                             </td>
-                                                        </tr>
-
-                                                        <tr>
                                                             <td
-                                                                className="border px-4 py-2"
                                                                 colSpan={
                                                                     flattenedCampuses.length +
                                                                     1
                                                                 }
+                                                                className="score border px-4 py-2 text-end whitespace-nowrap align-top"
                                                             >
-                                                                {section
-                                                                    .evidences
-                                                                    .length >
-                                                                    0 &&
-                                                                    section.evidences.map(
+                                                                {updatedFormulas
+                                                                    .filter(
                                                                         (
-                                                                            evidence
-                                                                        ) => (
-                                                                            <button
-                                                                                onClick={
-                                                                                    () =>
-                                                                                        window.open(
-                                                                                            `../src/assets/evidence/${evidence.name}`,
-                                                                                            "_blank"
-                                                                                        ) // Construct full file path
-                                                                                }
-                                                                                className="bg-blue-500 text-white px-3 py-2 mr-2 rounded hover:bg-blue-600"
-                                                                            >
-                                                                                Open
-                                                                                File
-                                                                            </button>
-                                                                        )
+                                                                            formula
+                                                                        ) =>
+                                                                            formula.section_id ===
+                                                                            section.section_id
+                                                                    )
+                                                                    .reduce(
+                                                                        (
+                                                                            acc,
+                                                                            curr
+                                                                        ) =>
+                                                                            acc +
+                                                                            (curr.score ||
+                                                                                0),
+                                                                        0
                                                                     )}
                                                             </td>
                                                         </tr>
+                                                        <tr>
+                                                            <td
+                                                                colSpan={
+                                                                    flattenedCampuses.length +
+                                                                    1
+                                                                }
+                                                                className="border px-4 py-2 whitespace-nowrap align-top"
+                                                            >
+                                                                <div
+                                                                    key={
+                                                                        section.section_id
+                                                                    }
+                                                                >
+                                                                    <label
+                                                                        htmlFor={`file-${section.section_id}`}
+                                                                    >
+                                                                        Upload
+                                                                        files
+                                                                        for
+                                                                    </label>
+                                                                    <br />
+                                                                    <input
+                                                                        id={`file-${section.section_id}`}
+                                                                        type="file"
+                                                                        accept=".jpeg, .jpg, .png, .pdf"
+                                                                        multiple
+                                                                        onChange={(
+                                                                            e
+                                                                        ) =>
+                                                                            handleFileChange(
+                                                                                e,
+                                                                                section.section_id
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                    {sectionFiles[
+                                                                        section
+                                                                            .section_id
+                                                                    ] && (
+                                                                        <ul>
+                                                                            {fileData[
+                                                                                section
+                                                                                    .section_id
+                                                                            ].map(
+                                                                                (
+                                                                                    file,
+                                                                                    index
+                                                                                ) => (
+                                                                                    <li
+                                                                                        key={
+                                                                                            index
+                                                                                        }
+                                                                                    >
+                                                                                        {
+                                                                                            file.name
+                                                                                        }
+                                                                                    </li>
+                                                                                )
+                                                                            )}
+                                                                        </ul>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        {index ===
+                                                            instruments.length -
+                                                                1 && (
+                                                            <tr>
+                                                                <td
+                                                                    colSpan={
+                                                                        flattenedCampuses.length +
+                                                                        1
+                                                                    }
+                                                                    className="border px-4 text-end py-2 whitespace-nowrap align-top"
+                                                                >
+                                                                    Total Score:
+                                                                    {totalScore}
+                                                                </td>
+                                                            </tr>
+                                                        )}
                                                     </React.Fragment>
                                                 )
                                             )
@@ -709,19 +837,6 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
                                                 </td>
                                             </tr>
                                         )}
-                                        {instruments.length === index + 1 && (
-                                            <tr>
-                                                <td
-                                                    className="border px-4 py-2 text-end"
-                                                    colSpan={
-                                                        flattenedCampuses.length +
-                                                        1
-                                                    }
-                                                >
-                                                    {"Total Score: " + total}
-                                                </td>
-                                            </tr>
-                                        )}
                                     </React.Fragment>
                                 ))}
                             </tbody>
@@ -732,7 +847,7 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
                 </div>
                 <button
                     type="submit"
-                    className="bg-blue-500 text-white px-4 py-2 rounded mt-2"
+                    className="bg-blue-500 text-white px-4 py-2 rounded mt-5"
                 >
                     Submit
                 </button>
@@ -741,4 +856,4 @@ const UpdateRecordForm = ({ selectedSdg, selectedYear, recordId }) => {
     );
 };
 
-export default UpdateRecordForm;
+export default RecordSubmissionForm;

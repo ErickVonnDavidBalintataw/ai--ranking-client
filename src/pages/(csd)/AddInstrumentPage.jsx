@@ -5,6 +5,7 @@ import { useNavigate, Link } from "react-router-dom"; // Import useNavigate
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faTrash } from "@fortawesome/free-solid-svg-icons";
 import Swal from "sweetalert2";
+import NotificationSD from "../../components/NotificationSD";
 
 const AddInstrumentPage = () => {
     const [sdgs, setSdgs] = useState([
@@ -613,12 +614,15 @@ const AddInstrumentPage = () => {
             <main className="h-full w-[80%] border overflow-auto">
                 <div className="header py-5 px-7 flex justify-between items-center">
                     <h1 className="text-2xl text-gray-900">Add Instruments</h1>
-                    <Link
-                        to="/csd/instruments"
-                        className="bg-blue-600 text-white text-base px-6 py-2"
-                    >
-                        <FontAwesomeIcon icon={faArrowLeft} /> Back
-                    </Link>
+                    <div className="flex gap-2">
+                        <Link
+                            to="/csd/instruments"
+                            className="bg-blue-600 text-white text-base px-6 py-2"
+                        >
+                            <FontAwesomeIcon icon={faArrowLeft} /> Back
+                        </Link>
+                        <NotificationSD />
+                    </div>
                 </div>
                 <hr />
                 <div className="py-5 px-7">

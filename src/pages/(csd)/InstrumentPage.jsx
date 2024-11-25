@@ -9,6 +9,8 @@ import {
 import { getInstruments } from "../../services/service"; // Import your service for fetching instruments
 import { Link, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
+import NotificationSD from "../../components/NotificationSD";
+import NotificationCSD from "../../components/NotificationCSD";
 
 const InstrumentsPage = () => {
     const [instruments, setInstruments] = useState([]);
@@ -105,10 +107,6 @@ const InstrumentsPage = () => {
 
         if (!userId || !role) {
             navigate("/login");
-        }
-
-        if (userId && role === "1") {
-            navigate("/sd/impact-ranking");
         }
     }, [navigate]);
 
@@ -240,15 +238,24 @@ const InstrumentsPage = () => {
             <main className="h-full w-[80%] border overflow-auto">
                 <div className="header py-5 px-7 flex justify-between items-center">
                     <h1 className="text-2xl text-gray-900">Instruments</h1>
-                    {userRole.toString() === "0" && ( // Check if the user role is '0'
-                        <Link
-                            to="/csd/add-instrument"
-                            className="bg-blue-600 text-white text-base px-6 py-2"
-                        >
-                            <FontAwesomeIcon icon={faSquarePlus} /> Add New
-                            Instrument
-                        </Link>
-                    )}
+                    <div className="flex gap-2">
+                        {userRole.toString() === "0" ? (
+                            // Check if the user role is '0'
+                            <>
+                                {" "}
+                                <Link
+                                    to="/csd/add-instrument"
+                                    className="bg-blue-600 text-white text-base px-6 py-2"
+                                >
+                                    <FontAwesomeIcon icon={faSquarePlus} /> Add
+                                    New Instrument
+                                </Link>
+                                <NotificationSD />
+                            </>
+                        ) : (
+                            <NotificationCSD />
+                        )}
+                    </div>
                 </div>
                 <hr />
                 <div className="py-5 px-7">

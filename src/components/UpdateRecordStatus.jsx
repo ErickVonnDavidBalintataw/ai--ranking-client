@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import excelFormula from "excel-formula";
 import Swal from "sweetalert2";
+import emailjs from "@emailjs/browser";
 
 const UpdateRecordStatus = ({
     selectedSdg,
@@ -20,6 +21,7 @@ const UpdateRecordStatus = ({
     const [updatedFormulas, setUpdatedFormulas] = useState([]);
     const [existingAnswers, setExistingAnswers] = useState([]);
     const [status, setStatus] = useState(0); // State for status
+    const [notes, setNotes] = useState("");
 
     const [sumByQuestionID, setSumByQuestionID] = useState([]); // State to store the arr
     const campuses = {
@@ -45,6 +47,11 @@ const UpdateRecordStatus = ({
     };
 
     useEffect(() => {
+        setInstruments([]);
+        setAnswers([]);
+        setFormulas([]);
+        setUpdatedFormulas([]);
+        setSumByQuestionID([]);
         const fetchExistingAnswers = async () => {
             try {
                 const response = await fetch(
@@ -136,6 +143,7 @@ const UpdateRecordStatus = ({
                             const sections = await sectionsResponse.json();
                             const sectionsWithQuestions =
                                 await fetchQuestionsForSections(sections);
+                            console.log(sectionsWithQuestions, "Asdasd");
                             return {
                                 ...instrument,
                                 section_contents: sectionsWithQuestions,
@@ -146,8 +154,6 @@ const UpdateRecordStatus = ({
                     })
                 );
                 setInstruments(updatedInstruments);
-
-                console.log(updatedInstruments);
             } catch (error) {
                 setError("An error occurred while fetching sections.");
             }
@@ -165,8 +171,8 @@ const UpdateRecordStatus = ({
                             const fetchFormulas = await fetch(
                                 `https://ai-backend-drcx.onrender.com/api/get/formula_per_section/${section.section_id}`
                             );
-                            const formula = await fetchFormulas.json();
 
+                            const formula = await fetchFormulas.json();
                             const fetchEvidenceResponse = await fetch(
                                 `https://ai-backend-drcx.onrender.com/api/get/evidence/`,
                                 {
@@ -186,6 +192,11 @@ const UpdateRecordStatus = ({
 
                             if (!formula.includes(section.section_id)) {
                                 fetchedFormulas.push(formula[0]);
+
+                                setFormulas((prevFormulas) => [
+                                    ...prevFormulas,
+                                    formula[0],
+                                ]);
                             }
 
                             if (questionsResponse.ok) {
@@ -208,10 +219,6 @@ const UpdateRecordStatus = ({
                         }
                     })
                 );
-                setFormulas((prevFormula) => [
-                    ...prevFormula,
-                    ...fetchedFormulas,
-                ]);
                 return sectionsWithQuestions;
             } catch (error) {
                 setError("An error occurred while fetching questions.");
@@ -250,6 +257,7 @@ const UpdateRecordStatus = ({
                 }
                 return acc;
             }, []);
+            console.log(uniqueFormulas, "Asd");
         }
 
         if (answers && answers.length > 0) {
@@ -273,6 +281,7 @@ const UpdateRecordStatus = ({
                 } else {
                     // If no entry exists, create a new object
                     acc.push({
+                        section_id: item.section_id,
                         question_id: questionId,
                         sub_id: subId,
                         value: value,
@@ -282,11 +291,12 @@ const UpdateRecordStatus = ({
                 return acc;
             }, []); // Initialize as an empty array
 
-            setSumByQuestionID(summedAnswers);
+            setSumByQuestionID(summedAnswers); // Update the state with the summed answers as an array of objects
+            console.log(summedAnswers, "marker"); // Optional: for debugging
         } else {
             console.log("No answers or empty array", "marker");
         }
-    }, [formulas, answers]); // Re-run effect whenever formulas or answers change
+    }, [formulas, answers]);
 
     useEffect(() => {
         if (
@@ -302,14 +312,37 @@ const UpdateRecordStatus = ({
                     self.findIndex((t) => t.formula_id === value.formula_id)
             );
 
-            // Assuming sumByQuestionID is in the format similar to summationData
             const valueMap = {};
             sumByQuestionID.forEach((item) => {
                 valueMap[item.sub_id] = item.value; // Create a map for fast lookup
             });
 
+            console.log(valueMap, "hahahaha vas");
+
+            const valueMapBySection = sumByQuestionID.reduce((acc, item) => {
+                // If the section doesn't exist in the accumulator, create it
+                if (!acc[item.section_id]) {
+                    acc[item.section_id] = {};
+                }
+
+                // Set the sub_id with its corresponding value
+                acc[item.section_id][item.sub_id] = item.value;
+
+                return acc;
+            }, {});
+
+            console.log(valueMapBySection, "hahahaha vass");
+
             // Function to replace values in the formula
             const replaceFormulaValues = (formula, valueMap) => {
+                console.log(
+                    formula.replace(/([A-Z]\d+)/g, (match) => {
+                        return valueMap[match] !== undefined
+                            ? valueMap[match]
+                            : match;
+                    }),
+                    "replaces"
+                );
                 return formula.replace(/([A-Z]\d+)/g, (match) => {
                     return valueMap[match] !== undefined
                         ? valueMap[match]
@@ -317,67 +350,42 @@ const UpdateRecordStatus = ({
                 });
             };
 
-            // Apply replacement to each unique formula
+            console.log(uniqueFormulas, "hahahaha forw");
+
+            // Updated Formulas with failsafe evaluation
             const updatedFormulasV = uniqueFormulas.map((formulaObj) => {
                 const updatedFormula = replaceFormulaValues(
                     formulaObj.formula,
-                    valueMap
+                    valueMapBySection[formulaObj.section_id]
                 );
+                console.log(updatedFormula, valueMap, "Updated Formula");
+
+                let result;
+                try {
+                    // Attempt to evaluate the formula
+                    const jsFormula = excelFormula.toJavaScript(updatedFormula);
+                    console.log(jsFormula, "JavaScript Formula");
+                    console.log(eval(jsFormula), "JavaScript Formula");
+
+                    result = eval(jsFormula);
+                } catch (error) {
+                    // If an error occurs, set the result to 0 (default value)
+                    console.error("Error evaluating formula:", error);
+                    result = 0;
+                }
+
                 return {
                     ...formulaObj,
                     formula: updatedFormula,
-                    score: eval(excelFormula.toJavaScript(updatedFormula)),
+                    score: result, // Fallback to 0 if there's an error
                 };
             });
 
-            setUpdatedFormulas(updatedFormulasV); // Log the updated formulas with replaced values
-            console.log(
-                "Updated formulas with replaced values:",
-                updatedFormulasV,
-                updatedFormulasV.reduce((acc, curr) => acc + curr.score, 0)
-            );
+            console.log(updatedFormulasV, "Final Formulas with Results");
 
-            setTotal(
-                updatedFormulasV.reduce((acc, curr) => acc + curr.score, 0)
-            );
+            setUpdatedFormulas(updatedFormulasV); // Log the updated formulas with replaced values
         }
     }, [sumByQuestionID, formulas]);
-
-    // const handleSubmit = async (e) => {
-    //     e.preventDefault();
-    //     try {
-    //         // Create a payload with the current status
-    //         const payload = {
-    //             record_id: recordId,
-    //             status: status, // Send the updated status
-    //         };
-
-    //         const response = await fetch(
-    //             "https://ai-backend-drcx.onrender.com/api/update/status",
-    //             {
-    //                 method: "PATCH",
-    //                 headers: {
-    //                     "Content-Type": "application/json",
-    //                 },
-    //                 body: JSON.stringify(payload),
-    //             }
-    //         );
-
-    //         if (!response.ok) {
-    //             throw new Error(
-    //                 `Error: ${response.status} ${response.statusText}`
-    //             );
-    //         }
-
-    //         const result = await response.json();
-    //         console.log("Status updated successfully:", result);
-
-    //         // Optionally, update the local status or display a success message
-    //     } catch (error) {
-    //         console.error("Error updating status:", error);
-    //         setError("An error occurred while updating the status.");
-    //     }
-    // };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -433,10 +441,167 @@ const UpdateRecordStatus = ({
             }
 
             const result = await response.json();
-            console.log("Status updated successfully:", result);
 
-            // Close loading spinner
             Swal.close();
+
+            const userName = localStorage.getItem("name");
+
+            const getStatusMessage = (status, notes = "") => {
+                switch (status) {
+                    case 1:
+                        return `
+                      =====================================================
+                      RECORD SUBMISSION NOTIFICATION
+                      =====================================================
+                      
+                      Dear Sir/Madam,
+          
+                      We would like to inform you that an existing record has been marked as **"To Be Approved"**.
+          
+                      Details of the Updated Record:
+                      -------------------------------------
+                      - Updated By: ${userName}
+                      - Record ID: ${recordId}
+
+                      
+                      Notes from the Reviewer:
+                      -------------------------
+                      ${notes || "No additional notes provided."}
+          
+                      Kindly review the record and take the necessary actions.
+          
+                      Best regards,  
+                      Campus Sustainable Development Office (CSDO)
+                    `;
+                    case 2:
+                        return `
+                      =====================================================
+                      RECORD REVISION NOTIFICATION
+                      =====================================================
+                      
+                      Dear Sir/Madam,
+          
+                      We would like to notify you that an existing record has been marked as **"To Be Revised"**.
+          
+                      Details of the Updated Record:
+                      -------------------------------------
+                      - Updated By: ${userName}
+                      - Record ID: ${recordId}
+                      
+                      Notes from the Reviewer:
+                      -------------------------
+                      ${notes || "No additional notes provided."}
+          
+                      Please address the required changes and resubmit the record for further review.
+          
+                      Best regards,  
+                      Campus Sustainable Development Office (CSDO)
+                    `;
+                    case 3:
+                        return `
+                      =====================================================
+                      RECORD APPROVAL NOTIFICATION
+                      =====================================================
+                      
+                      Dear Sir/Madam,
+          
+                      We are pleased to inform you that an existing record has been marked as **"Approved"**.
+          
+                      Details of the Updated Record:
+                      -------------------------------------
+                      - Updated By: ${userName}
+                      - Record ID: ${recordId}
+          
+                      This record is now finalized and requires no further actions.
+          
+                      Best regards,  
+                      Sustainable Development Office (SDO)
+                    `;
+                    default:
+                        return `
+                      =====================================================
+                      RECORD STATUS UPDATE
+                      =====================================================
+                      
+                      Dear Sir/Madam,
+          
+                      The status of an existing record has been updated.
+          
+                      Details of the Updated Record:
+                      -------------------------------------
+                      - Updated By: ${userName}
+                      - Record ID: ${recordId}
+
+                      
+                      Notes from the Reviewer:
+                      -------------------------
+                      ${notes || "No additional notes provided."}
+          
+                      Kindly check the record for further information.
+          
+                      Best regards,  
+                      Campus Sustainable Development Office (CSDO)
+                    `;
+                }
+            };
+
+            try {
+                const message = getStatusMessage(status, notes);
+
+                // Send the email
+                await emailjs.send(
+                    "service_84tcmsn",
+                    "template_oj00ezl",
+                    {
+                        to_email: "justmyrgutierrez92@gmail.com",
+                        subject: "Record Status Update Notification",
+                        message,
+                    },
+                    "F6fJuRNFyTkkvDqbm"
+                );
+
+                const getNotificationMessage = (
+                    status,
+                    recordId,
+                    userName,
+                    notes = ""
+                ) => {
+                    switch (status) {
+                        case 1:
+                            return `The record with ID: ${recordId} has been marked as "To Be Approved" by ${userName}. Please review the record and take the necessary actions.`;
+                        case 2:
+                            return `The record with ID: ${recordId} has been marked as "To Be Revised" by ${userName}. Notes from the reviewer: ${
+                                notes || "No additional notes provided."
+                            } Please address the required changes.`;
+                        case 3:
+                            return `The record with ID: ${recordId} has been marked as "Approved" by ${userName}. This record is now finalized and requires no further actions.`;
+                        default:
+                            return `The status of the record with ID: ${recordId} has been updated by ${userName}. Please check the record for further information.`;
+                    }
+                };
+
+                // Create a notification
+                await fetch(
+                    "https://ai-backend-drcx.onrender.com/api/csd/create-notification",
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            userId: localStorage.getItem("user_id"), // User ID from localStorage
+                            notificationMessage: getNotificationMessage(
+                                status,
+                                recordId,
+                                userName,
+                                notes
+                            ),
+                        }),
+                    }
+                );
+
+                console.log("Email and notification sent successfully.");
+            } catch (error) {
+                console.error("Error sending email or notification:", error);
+            }
 
             // Show success message
             await Swal.fire({
@@ -692,14 +857,14 @@ const UpdateRecordStatus = ({
                     )}
                 </div>
 
-                <div>
+                <div className="flex flex-col gap-4">
                     <label htmlFor="status" className="block my-5">
                         Status:
                     </label>
                     <select
                         id="status"
                         onChange={(e) => setStatus(Number(e.target.value))} // Update status on selection
-                        className="border rounded p-1 w-32"
+                        className="border rounded p-1 w-[18rem]"
                     >
                         <option value={1} selected={recordStatus === 1}>
                             For Approval
@@ -711,7 +876,17 @@ const UpdateRecordStatus = ({
                             Approved
                         </option>
                     </select>
+
+                    {status === 2 && (
+                        <textarea
+                            className="textarea border w-[30rem]"
+                            placeholder="Enter revision notes here..."
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                        />
+                    )}
                 </div>
+
                 <button
                     type="submit"
                     className="bg-blue-500 text-white px-4 py-2 rounded mt-4"

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../../components/Sidebar";
+import NotificationSD from "../../components/NotificationSD";
+import NotificationCSD from "../../components/NotificationCSD";
 
 const AnnualReportPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -87,13 +89,18 @@ const AnnualReportPage = () => {
                     <h1 className="text-2xl text-gray-900">Annual Report</h1>
 
                     {/* Button to open modal */}
-                    {localStorage.getItem("role") === "0" && (
-                        <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="bg-blue-500 text-white px-4 py-2 rounded"
-                        >
-                            Upload Annual Report
-                        </button>
+                    {localStorage.getItem("role") === "0" ? (
+                        <NotificationSD />
+                    ) : (
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setIsModalOpen(true)}
+                                className="bg-blue-500 text-white px-4 py-2 rounded"
+                            >
+                                Upload Annual Report
+                            </button>
+                            <NotificationCSD />
+                        </div>
                     )}
                 </div>
                 <hr />

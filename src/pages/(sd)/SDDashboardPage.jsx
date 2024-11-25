@@ -8,6 +8,7 @@ import CampusSDGScoreChart from "../../components/CampusSDGScorePage";
 import Recommender from "../../components/Recommender";
 import FileChart from "../../components/FileChart";
 import { useNavigate } from "react-router-dom";
+import NotificationCSD from "../../components/NotificationCSD";
 const groq = new Groq({
     apiKey: "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",
     dangerouslyAllowBrowser: true,
@@ -16,11 +17,7 @@ const groq = new Groq({
 const SDDashboardPage = () => {
     const [topCampus, setTopCampus] = useState([]);
     const [sdOfficers, setSdOfficers] = useState([]);
-    const [sdgs, setSdgs] = useState([
-        { sdg_id: "SDG01", title: "No Poverty" },
-        { sdg_id: "SDG02", title: "Zero Hunger" },
-        // Add other SDGs here
-    ]);
+
     const [selectedSdgId, setSelectedSdgId] = useState("SDG01");
     const [campusScores, setCampusScores] = useState([]);
     const [instruments, setInstruments] = useState([]);
@@ -64,26 +61,28 @@ const SDDashboardPage = () => {
                 <div className="header py-5 px-7 flex justify-between items-center">
                     <h1 className="text-2xl text-gray-900">Dashboard</h1>
 
-                    {/* Step 3: Add a year selection dropdown */}
-                    <select
-                        name="year-selector"
-                        id="year-selector"
-                        className="border p-2 rounded"
-                        value={selectedYear}
-                        onChange={(e) => setSelectedYear(e.target.value)}
-                    >
-                        <option value="">Select Year</option>
-                        {years.map((year, index) => (
-                            <option
-                                key={year}
-                                value={year}
-                                // Add a default selected year if needed
-                                selected={index === 0}
-                            >
-                                {year}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="flex gap-2">
+                        <select
+                            name="year-selector"
+                            id="year-selector"
+                            className="border p-2 rounded"
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(e.target.value)}
+                        >
+                            <option value="">Select Year</option>
+                            {years.map((year, index) => (
+                                <option
+                                    key={year}
+                                    value={year}
+                                    // Add a default selected year if needed
+                                    selected={index === 0}
+                                >
+                                    {year}
+                                </option>
+                            ))}
+                        </select>
+                        <NotificationCSD />
+                    </div>
                 </div>
                 <hr className="w-full border my-4" />
                 <div className="flex gap-4 mb-4">

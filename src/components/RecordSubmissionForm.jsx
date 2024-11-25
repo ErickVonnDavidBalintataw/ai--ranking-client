@@ -108,6 +108,7 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
         setAnswers([]);
         setFormulas([]);
         setUpdatedFormulas([]);
+        setSumByQuestionID([]);
         const fetchInstruments = async () => {
             if (!selectedSdg) return;
 
@@ -117,8 +118,9 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
                 );
                 if (response.ok) {
                     const instrumentData = await response.json();
+                    console.log(instrumentData, "hahahaha int");
+
                     await fetchSectionsForInstruments(instrumentData);
-                    console.log(instrumentData, "hahahaha");
                 } else {
                     setError("Failed to fetch instruments.");
                 }
@@ -149,6 +151,7 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
                         }
                     })
                 );
+                console.log(updatedInstruments, "asdasdasd");
                 setInstruments(updatedInstruments);
             } catch (error) {
                 setError("An error occurred while fetching sections.");
@@ -172,6 +175,10 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
 
                             if (!formula.includes(section.section_id)) {
                                 fetchedFormulas.push(formula[0]);
+                                setFormulas((prevFormulas) => [
+                                    ...prevFormulas,
+                                    formula[0],
+                                ]);
                             }
 
                             if (questionsResponse.ok) {
@@ -191,10 +198,15 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
                         }
                     })
                 );
+                // const flattenedFormulas = fetchedFormulas.flat();
+                // console.log(flattenedFormulas, "hahahaha formss");
 
-                console.log(fetchedFormulas, "hahahaha forms");
+                // console.log(fetchedFormulas, "hahahaha forms");
+                // setFormulas((prevFormulas) => [
+                //     ...prevFormulas,
+                //     fetchedFormulas.flat(),
+                // ]);
 
-                setFormulas(fetchedFormulas);
                 return sectionsWithQuestions;
             } catch (error) {
                 setError("An error occurred while fetching questions.");
@@ -215,6 +227,7 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
                 section.questions.forEach((question) => {
                     flattenedCampuses.forEach((campus) => {
                         answers.push({
+                            section_id: section.section_id,
                             question_id: question.question_id,
                             sub_id: question.sub_id,
                             value: 0,
@@ -285,6 +298,7 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
                 } else {
                     // If no entry exists, create a new object
                     acc.push({
+                        section_id: item.section_id,
                         question_id: questionId,
                         sub_id: subId,
                         value: value,
@@ -315,71 +329,76 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
                     self.findIndex((t) => t.formula_id === value.formula_id)
             );
 
-            // Assuming sumByQuestionID is in the format similar to summationData
             const valueMap = {};
             sumByQuestionID.forEach((item) => {
                 valueMap[item.sub_id] = item.value; // Create a map for fast lookup
             });
 
-            // // Function to replace values in the formula
-            // const replaceFormulaValues = (formula, valueMap) => {
-            //     return formula.replace(/([A-Z]\d+)/g, (match) => {
-            //         return valueMap[match] !== undefined
-            //             ? valueMap[match]
-            //             : match;
-            //     });
-            // };
+            console.log(valueMap, "hahahaha vas");
 
-            const safeEvaluate = (formula, valueMap) => {
-                try {
-                    const replacedFormula = formula.replace(
-                        /([A-Z]\d+)/g,
-                        (match) => {
-                            return valueMap[match] !== undefined
-                                ? valueMap[match]
-                                : match;
-                        }
-                    );
-
-                    // Replace eval with Function for safe evaluation
-                    const fn = new Function("return " + replacedFormula);
-                    return fn();
-                } catch (error) {
-                    console.error("Error evaluating formula:", error);
-                    return 0; // Default to 0 in case of error
+            const valueMapBySection = sumByQuestionID.reduce((acc, item) => {
+                // If the section doesn't exist in the accumulator, create it
+                if (!acc[item.section_id]) {
+                    acc[item.section_id] = {};
                 }
+
+                // Set the sub_id with its corresponding value
+                acc[item.section_id][item.sub_id] = item.value;
+
+                return acc;
+            }, {});
+
+            console.log(valueMapBySection, "hahahaha vass");
+
+            // Function to replace values in the formula
+            const replaceFormulaValues = (formula, valueMap) => {
+                console.log(
+                    formula.replace(/([A-Z]\d+)/g, (match) => {
+                        return valueMap[match] !== undefined
+                            ? valueMap[match]
+                            : match;
+                    }),
+                    "replaces"
+                );
+                return formula.replace(/([A-Z]\d+)/g, (match) => {
+                    return valueMap[match] !== undefined
+                        ? valueMap[match]
+                        : match;
+                });
             };
 
+            console.log(uniqueFormulas, "hahahaha forw");
+
+            // Updated Formulas with failsafe evaluation
             const updatedFormulasV = uniqueFormulas.map((formulaObj) => {
-                const updatedFormula = safeEvaluate(
+                const updatedFormula = replaceFormulaValues(
                     formulaObj.formula,
-                    valueMap
+                    valueMapBySection[formulaObj.section_id]
                 );
-                console.log(updatedFormula, "Updated Formula");
+                console.log(updatedFormula, valueMap, "Updated Formula");
+
+                let result;
+                try {
+                    // Attempt to evaluate the formula
+                    const jsFormula = excelFormula.toJavaScript(updatedFormula);
+                    console.log(jsFormula, "JavaScript Formula");
+                    console.log(eval(jsFormula), "JavaScript Formula");
+
+                    result = eval(jsFormula);
+                } catch (error) {
+                    // If an error occurs, set the result to 0 (default value)
+                    console.error("Error evaluating formula:", error);
+                    result = 0;
+                }
 
                 return {
                     ...formulaObj,
                     formula: updatedFormula,
-                    score: eval(excelFormula.toJavaScript(updatedFormula)),
+                    score: result, // Fallback to 0 if there's an error
                 };
             });
 
-            // Apply replacement to each unique formula
-
-            // console.log(uniqueFormulas, "hahahaha forw");
-            // const updatedFormulasV = uniqueFormulas.map((formulaObj) => {
-            //     const updatedFormula = replaceFormulaValues(
-            //         formulaObj.formula,
-            //         valueMap
-            //     );
-            //     console.log(updatedFormula, "hahahaha for");
-
-            //     return {
-            //         ...formulaObj,
-            //         formula: updatedFormula,
-            //         score: eval(excelFormula.toJavaScript(updatedFormula)),
-            //     };
-            // });
+            console.log(updatedFormulasV, "Final Formulas with Results");
 
             setUpdatedFormulas(updatedFormulasV); // Log the updated formulas with replaced values
         }
@@ -516,6 +535,8 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
                 return; // Stop if file upload fails
             }
 
+            const userName = localStorage.getItem("name"); // Retrieve the name from localStorage
+
             const recordID = record.record_id;
 
             try {
@@ -532,7 +553,7 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
 
                                     Hello,
 
-                                    A new record has been successfully submitted.
+                                    A new record has been successfully submitted by ${userName}.
 
                                     Record Details:
                                     ---------------
@@ -546,12 +567,43 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
                     "F6fJuRNFyTkkvDqbm"
                 );
 
+                const res = await sendAnswers(record.record_id);
+
+                if (res) {
+                    const notificationMessage = `
+                New record submission:
+                - Record ID: ${recordID}
+                - Submitted by: ${userName}
+            `;
+
+                    // Send a request to insert the notification
+                    const notifResponse = await fetch(
+                        "https://ai-backend-drcx.onrender.com/api/create-notification",
+                        {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                userId: localStorage.getItem("user_id"), // User ID from localStorage
+                                notificationMessage,
+                            }),
+                        }
+                    );
+
+                    if (!notifResponse.ok)
+                        throw new Error("Failed to create notification");
+
+                    console.log("Notification sent successfully");
+                }
+                console.log("All answers submitted successfully.");
+
                 Swal.fire({
                     title: "Success!",
                     text: "Answers updated successfully.",
                     icon: "success",
                     confirmButtonText: "OK",
                 });
+
+                window.location.reload();
             } catch (error) {
                 console.error("Error submitting answer:", error);
 
@@ -563,13 +615,6 @@ const RecordSubmissionForm = ({ selectedSdg, selectedYear }) => {
                     confirmButtonText: "OK",
                 });
             }
-
-            // Proceed to send answers using the record_id
-            const res = await sendAnswers(record.record_id);
-            if (res) {
-                window.location.reload();
-            }
-            console.log("All answers submitted successfully.");
         } catch (error) {
             console.error("Error during record submission:", error);
         }
